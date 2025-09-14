@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crop Prediction Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: inline-block; width: 120px; }
+        input, select { padding: 8px; width: 200px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 20px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Crop Yield Prediction</h1>
+    
+    <form id="predictionForm">
+        <div class="form-group">
+            <label for="district">District:</label>
+            <input type="text" id="district" name="district" required value="Khurda">
+        </div>
+        
+        <div class="form-group">
+            <label for="crop">Crop:</label>
+            <input type="text" id="crop" name="crop" required value="Rice">
+        </div>
+        
+        <div class="form-group">
+            <label for="season">Season:</label>
+            <select id="season" name="season" required>
+                <option value="Kharif">Kharif</option>
+                <option value="Rabi">Rabi</option>
+                <option value="Whole Year">Whole Year</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="sowing_date">Sowing Date:</label>
+            <input type="date" id="sowing_date" name="sowing_date" required value="2023-06-01">
+        </div>
+        
+        <button type="button" onclick="getPrediction()">Get Prediction</button>
+        <button type="button" onclick="downloadReport()">Download PDF Report</button>
+    </form>
+    
+    <div id="result" class="result" style="display: none;">
+        <h2>Prediction Results</h2>
+        <div id="resultContent"></div>
+    </div>
+
+    <script>
+        async function getPrediction() {
+            const formData = {
+                district: document.getElementById('district').value,
+                crop: document.getElementById('crop').value,
+                season: document.getElementById('season').value,
+                sowing_date: document.getElementById('sowing_date').value
+            };
+            
+            try {
+                const response = await fetch('http://localhost:8000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('resultContent').innerHTML = formatResults(data);
+                document.getElementById('result').style.display = 'block';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error getting prediction');
+            }
+        }
+        
+        async function downloadReport() {
+            const formData = {
+                district: document.getElementById('district').value,
+                crop: document.getElementById('crop').value,
+                season: document.getElementById('season').value,
+                sowing_date: document.getElementById('sowing_date').value
+            };
+            
+            try {
+                const response = await fetch('http://localhost:8000/download-report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `crop_report_${formData.district}_${formData.crop}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    alert('Error downloading report');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error downloading report');
+            }
+        }
+        
+        function formatResults(data) {
+            return `
+                <h3>Environmental Conditions</h3>
+                <p>Total Rainfall: ${data.predicted_environmental_conditions.season_total_rainfall_mm} mm</p>
+                <p>Average Temperature: ${data.predicted_environmental_conditions.season_avg_temp_c} °C</p>
+                <p>Average Humidity: ${data.predicted_environmental_conditions.season_avg_humidity}%</p>
+                
+                <h3>Soil Conditions</h3>
+                <p>pH: ${data.predicted_soil_conditions.soil_pH}</p>
+                <p>Nitrogen: ${data.predicted_soil_conditions.soil_N_kg_ha} kg/ha</p>
+                <p>Phosphorus: ${data.predicted_soil_conditions.soil_P_kg_ha} kg/ha</p>
+                <p>Potassium: ${data.predicted_soil_conditions.soil_K_kg_ha} kg/ha</p>
+                <p>Organic Carbon: ${data.predicted_soil_conditions.organic_carbon_pct}%</p>
+                <p>Moisture: ${data.predicted_soil_conditions.soil_moisture_pct}%</p>
+                
+                <h3>Fertilizer Recommendation</h3>
+                <p>Nitrogen (N): ${data.predicted_fertilizer_recommendation.N} kg/ha</p>
+                <p>Phosphorus (P): ${data.predicted_fertilizer_recommendation.P} kg/ha</p>
+                <p>Potassium (K): ${data.predicted_fertilizer_recommendation.K} kg/ha</p>
+                
+                <h3>Yield Prediction</h3>
+                <p>Expected Yield: ${data.predicted_yield_kg_per_ha} kg/ha</p>
+                <p>Harvest Days: ${data.predicted_harvest_days} days</p>
+            `;
+        }
+    </script>
+</body>
+</html>
