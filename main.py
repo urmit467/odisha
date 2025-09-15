@@ -10,9 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import report_utils  # We'll create this next
 import os
+
 import tempfile
 
 app = FastAPI(title="Odisha Crop Yield Predictor")
+
 
 # Load the training pipeline (preproc + model)
 PIPE_PATH = "odisha_crop_pipeline.joblib"
@@ -175,7 +177,7 @@ def model_info():
     
     return info
 
-origins = ["http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:8000"]
+origins = ["http://localhost:3000", "http://127.0.0.1:5500", "http://localhost:8000"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
