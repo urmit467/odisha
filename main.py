@@ -1,3 +1,4 @@
+from io import BytesIO
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import joblib
@@ -7,7 +8,7 @@ from datetime import datetime
 from temperature import temperature_calculator
 from rainfall import get_rainfall_forecast
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import report_utils  # We'll create this next
 import os
 
@@ -140,23 +141,19 @@ def predict(req: PredictionRequest):
 
 @app.post("/download-report")
 async def download_report(req: PredictionRequest):
-    """Generate and download a PDF report for the prediction"""
-    # Get the prediction data
+    """Generate and return a PDF report for the prediction as bytes"""
     prediction_response = predict(req)
-    
-    # Generate PDF
-    pdf_content = report_utils.generate_pdf_report(prediction_response, req)
-    
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(pdf_content)
-        tmp_path = tmp.name
-    
-    # Return the file as a response
-    return FileResponse(
-        tmp_path,
+
+    pdf_content: bytes = report_utils.generate_pdf_report(prediction_response, req)
+
+    pdf_stream = BytesIO(pdf_content)
+
+    return StreamingResponse(
+        pdf_stream,
         media_type="application/pdf",
-        filename=f"crop_report_{req.district}_{req.crop}.pdf"
+        headers={
+            "Content-Disposition": f"attachment; filename=crop_report_{req.district}_{req.crop}.pdf"
+        }
     )
 
 @app.get("/")
